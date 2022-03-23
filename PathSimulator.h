@@ -18,9 +18,9 @@ public:
 	PathSimulator& operator = (const PathSimulator & path_simulator);
 	~PathSimulator();
 	std::vector<Pair> path() const;
-	double psi_function(const double& time, const double& variance) const override;// à déclarer
-	double a_function(const double& time, const double& variance) const override; // à déclarer
-	double b_function(const double& time, const double& variance) const override; // à déclarer
+	double psi_function(const double& time, const double& variance) const override;// Ã  dÃ©clarer
+	double a_function(const double& time, const double& variance) const override; // Ã  dÃ©clarer
+	double b_function(const double& time, const double& variance) const override; // Ã  dÃ©clarer
 	double variance_function(const double& Monte_carlo_variance, const double& Dupire_local_vol); 
 
 	std::vector<std::vector<Pair>> Monte_carlo_variance() const;
@@ -32,8 +32,6 @@ private:
 	const HestonModel* _model;
 	int _nbr_simulation;
 	int _nbr_bins;
-	int _alpha_coeficient;
-	std::vector<std::vector<double>> _bins_vector;
 	int risk_free_rate;
 	Pair init_sport_variance;
 };
