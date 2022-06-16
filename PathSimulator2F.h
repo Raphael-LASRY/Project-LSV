@@ -27,7 +27,7 @@ public:
 
 	~PathSimulator2F() = default;
 
-	vector<vector<pair<double, double>>> paths() const;
+	virtual vector<pair<double, double>> paths() const = 0;
 	double expiry() const;
 
 protected:
@@ -42,51 +42,49 @@ class PathSimulatorEuler2F : public PathSimulator2F
 
 public:
 
-	PathSimulatorEuler2F* clone() const;
-
 	PathSimulatorEuler2F(const vector<double>& time_points,
 		const Model2F& model, int nb_paths);
 
 	PathSimulatorEuler2F(const PathSimulatorEuler2F& path_simulator);
 
+	PathSimulatorEuler2F* clone() const;
+
 	PathSimulatorEuler2F& operator=(const PathSimulatorEuler2F& path_simulator);
 
 	~PathSimulatorEuler2F();
 
-	vector<vector<pair<double, double>>> paths() const;
+	vector<pair<double, double>> paths() const;
 
 };
 
 
-class PathSimulatorSLV{
+class PathSimulatorSLV : public PathSimulator2F
+{ 
 
 public:
 
 	PathSimulatorSLV(const vector<double>& time_points, const Model2F& model,
-		const DupireLocalVolatilitySurface& dupire_volatility, int nb_paths,
+		int nb_paths, const DupireLocalVolatilitySurface& dupire_volatility,
 		int nb_bins);
 
 	PathSimulatorSLV(const PathSimulatorSLV& path_simulator);
+
+	PathSimulatorSLV* clone() const;
 
 	PathSimulatorSLV& operator=(const PathSimulatorSLV path_simulator);
 
 	~PathSimulatorSLV();
 
-	vector<vector<pair<double, double>>> paths();
-
+	vector<pair<double, double>> paths() const;
 
 private:
 	vector<double> _time_points;
 	const Model2F* _model;
 	int nb_paths;
 
-	const DupireLocalVolatilitySurface* _dupire_volatility;
+	const DupireLocalVolatilitySurface _dupire_volatility;
 	int nb_bins;
 };
-
-
-vector<vector<pair<double, double>>> SLVPathSimulation(const HestonModel& model,
-	vector<double> time_points, int nb_paths, int nb_bins);
 
 
 

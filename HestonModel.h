@@ -1,35 +1,38 @@
-#ifndef HESTONMODEL_H
-#define HESTONMODEL_H
+#pragma once
 
-class HestonModel
+#ifndef HESTONMODEL
+#define HESTONMODEL
+
+#include "Model2F.h"
+
+class HestonModel : public Model2F
 {
 public:
+    HestonModel(const double& mean_reversion_speed, 
+                const double& mean_reversion_level, const double& vol_of_vol,
+                const double& risk_free_rate, const double& correlation, 
+                const Pair& init_spot_variance);
+    HestonModel(const HestonModel& model);
+    HestonModel& operator=(const HestonModel& model);
 
-    HestonModel(const double& initial_spot, const double& initial_variance, const double& drift, const double& mean_reversion_speed,
-    const double& mean_reversion_level, const double& vol_of_vol, const double& correlation); //constructor with parameters
-    HestonModel(const HestonModel& model); //constructor by recopy
-
-    // getter methods
-    double initial_spot() const;
-    double initial_variance() const;
-    double drift() const;
     double mean_reversion_speed() const;
     double mean_reversion_level() const;
     double vol_of_vol() const;
-    double correlation() const;
 
+    HestonModel* clone() const override;
+    ~HestonModel() = default;
+
+    double psi_function(const double& variance) const override;
+    double sigma_function(const double& time, const double& variance) const override;
+
+
+    double variance_diffusion(const double& time, const double& variance) const override;
+    double variance_drift(const double& time, const double& variance) const override;
 
 private:
-
-    double _initial_spot;         // S_O
-    double _initial_variance;     // V_O
-    double _drift;                // rate r
-    double _mean_reversion_speed; // kappa
-    double _mean_reversion_level; // theta
-    double _vol_of_vol;           // sigma_V
-    double _correlation;          // rho
+    double _mean_reversion_speed;
+    double _mean_reversion_level;
+    double _vol_of_vol;
 };
-
-
 
 #endif

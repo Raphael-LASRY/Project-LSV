@@ -7,6 +7,9 @@
 #include <iostream>
 using namespace std;
 
+//////////////////////////////
+// PathSimulator2F Methods
+//////////////////////////////
 
 PathSimulator2F::PathSimulator2F(const vector<double>& time_points,
 	const Model2F& model, int nb_paths)
@@ -19,6 +22,17 @@ PathSimulator2F::PathSimulator2F(const PathSimulator2F& path_simulator)
 	nb_paths(path_simulator.nb_paths)
 {
 }
+
+double PathSimulator2F::expiry() const
+{
+	return _time_points[_time_points.size() - 1];
+}
+
+
+//////////////////////////////
+// PathSimulatorEuler2F Methods
+//////////////////////////////
+
 
 PathSimulatorEuler2F* PathSimulatorEuler2F::clone() const
 {
@@ -43,22 +57,18 @@ PathSimulatorEuler2F::~PathSimulatorEuler2F()
 }
 
 
-vector<vector<pair<double, double>>> PathSimulatorEuler2F::paths() const
-
+vector<pair<double, double>> PathSimulatorEuler2F::paths() const
 {
 	// Initialization
 	int nb_paths = this->nb_paths;
 
 	
 	vector<pair<double, double>> current_step;
-	vector<vector<pair<double, double>>> all_paths;
 	
-
 	pair<double, double> init_spot_variance = _model->init_spot_variance();
 	for (int i = 0; i < nb_paths; i++) {
 		current_step.push_back(init_spot_variance);
 	}
-	all_paths.push_back(current_step);
 
 	int size = _time_points.size();
 
@@ -112,119 +122,70 @@ vector<vector<pair<double, double>>> PathSimulatorEuler2F::paths() const
 
 		}
 
-		all_paths.push_back(next_step);
 		current_step = next_step;
 		
 	}
-	return all_paths; 
+	return current_step; 
 }
 
 
-vector<vector<pair<double, double> >> SLVPathSimulation(const HestonModel& model, 
-	vector<double> time_points, int nb_paths, int nb_bins){
+///////////////////////////////
+// SLV Methods
+///////////////////////////////
 
-	vector<vector<pair<double, double> > > all_steps;
+
+PathSimulatorSLV::PathSimulatorSLV(const vector<double>& time_points, 
+	const Model2F& model, int nb_paths, 
+	const DupireLocalVolatilitySurface& dupire_volatility,
+	int nb_bins)
+	: PathSimulator2F(time_points, model, nb_paths),
+	_dupire_volatility(dupire_volatility),
+	nb_bins(nb_bins)
+{
+}
+
+
+PathSimulatorSLV::PathSimulatorSLV(const PathSimulatorSLV& path_simulator)
+	: PathSimulator2F(path_simulator), 
+	_dupire_volatility(path_simulator._dupire_volatility),
+	nb_bins(path_simulator.nb_bins)
+{
+}
+
+
+PathSimulatorSLV* PathSimulatorSLV::clone() const
+{
+	return new PathSimulatorSLV(*this);
+}
+
+
+PathSimulatorSLV::~PathSimulatorSLV()
+{
+	delete _model;
+}
+
+vector<pair<double, double>> PathSimulatorSLV::paths() const
+{	
+
+// Initialization
+	int nb_paths = this->nb_paths;
 
 	// current_step a vector of simulated (price, variance) for all monte-carlo simulation
-	vector< pair<double, double> > current_step ;
+	vector< pair<double, double> > current_step;
 
-	// Initialization
 	for (int i = 0; i < nb_paths; i++) {
-		current_step.push_back(model.init_spot_variance());
+		current_step.push_back(this->_model->init_spot_variance());
 	}
 
-	all_steps.push_back(current_step);
+	int nb_time_points = this->_time_points.size();
 
-	int nb_time_points = time_points.size();
+// Monte Carlo Simulations
+
 	
-	for (int i = 0; i < (nb_time_points-1); i++) {
-
-		vector< pair < pair<double, double>, int > > sorted_vector;
-		for (int i = 0; i < nb_paths; i++) {  
-			sorted_vector.push_back(make_pair(current_step[i], i));
-		}
-
-		// Add comparison function in sort  pair<<pair <double, double>, int>>
-
-		std::sort(sorted_vector.begin(), sorted_vector.end());
-
-		// Compute the conditional expectation in each bin and create a map
-		// between indexes and their bins to retrieve conditional
-		// expectation later.
-		int bin_size = nb_paths / nb_bins;
-		int lower_bin_index = 0;
-		int upper_bin_index = bin_size;
-
-		map <int, double> conditional_expect_dict;
-
-
-		while (upper_bin_index <= nb_paths) {
-
-			int upper_idx = min(upper_bin_index, nb_paths);
-
-			double conditional_expectation = 0;
-
-			int nb_observations = 0;
-
-			for (int j = lower_bin_index; j < upper_idx; j++) {
-
-				// This is where we put psi(sorted_vector[j].first.second)
-				conditional_expectation += sorted_vector[j].first.second;
-
-				nb_observations += 1;
-			}
-			conditional_expectation = ((conditional_expectation * nb_observations)
-				/ nb_paths);
-
-			// Save conditional expectation for each index in the unsorted vector
-			for (int j = lower_bin_index; j < upper_idx; j++) {
-				int idx = sorted_vector[j].second;
-				conditional_expect_dict[idx] = conditional_expectation;
-			}
-			lower_bin_index += bin_size;
-			upper_bin_index += bin_size;
-		}
-
-		// Compute next step
-
-		vector< pair<double, double> > next_step = current_step;
-		double t = time_points[i];
-		double delta_t = time_points[i + 1] - time_points[i];
-
-		for (int j = 0; j < nb_paths; j++) {
-
-			std::mt19937 generator = std::mt19937(std::chrono::system_clock::now()
-												  .time_since_epoch().count());
-			std::normal_distribution<double> distribution(0., 1.);
-			double normal_1 = distribution(generator);
-			double normal_2 = distribution(generator);
-			double correlation = model.correlation();
-			double normal_corr = correlation * normal_1
-				                + sqrt(1 - correlation * correlation) * normal_2;
-			
-
-			double previous_vol = current_step[j].second; 
-			double next_vol = previous_vol
-							  + model.variance_drift(t, previous_vol)*delta_t 
-						      + (model.variance_diffusion(t, previous_vol) 
-								  * sqrt(delta_t) * normal_corr);
-			double previous_spot = current_step[j].first;
-			double r = model.risk_free_rate();
-
-			double dupire_vol = 0.1; // TO REPLACE WITH DUPIRE VOLATILTIY
-
-			double next_spot = previous_spot
-							+ r * previous_spot * delta_t
-							+ (sqrt(dupire_vol / conditional_expect_dict[j])
-								* previous_spot
-								* model.psi_function(previous_vol)
-								* sqrt(delta_t)
-								* normal_1);
-
-			next_step[j].first = next_spot;
-			next_step[j].second = next_vol;
-		}
-		all_steps.push_back(next_step);
-	}
-	return all_steps;
+	return current_step;
 }
+
+
+
+
+
