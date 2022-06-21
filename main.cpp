@@ -8,6 +8,8 @@
 #include <iostream>
 #include <map>
 #include <utility>
+#include <cmath>
+#include <cstdlib>
 
 #include "ImpliedVolatilitySurface.h"
 #include "HestonModel.h"
@@ -22,13 +24,16 @@ using namespace std;
 int main()
 
 {	
-	double risk_free_rate = 0.05;
+	srand(time(NULL));
+	double risk_free_rate = 6.5e-4;
 	double init_spot = 100.;
 	double init_variance = 1.;
 
 	/* Implied Volatility object */
-	Vector market_maturities = { 0.25, 0.5, 0.75, 1., 2., 3., 4., 5. };
-	Vector market_strikes = { 20., 40., 60., 80., 100., 120., 140., 160., 180. };
+	// Vector market_maturities = { 0.25, 0.5, 0.75, 1., 2., 3., 4., 5. };
+	// Vector market_strikes = { 20., 40., 60., 80., 100., 120., 140., 160., 180. };
+	Vector market_maturities = { 0.25, 0.275, 0.3, 0.325, 0.35, 0.375, 0.4, 0.425};
+	Vector market_strikes = { 99.6, 99.7, 99.8, 99.9, 100., 100.1, 100.2, 100.3, 100.4 };
 
 
 	Matrix market_implied_vols = {
@@ -55,7 +60,7 @@ int main()
 	pair <double, double> init_spot_variance;
 	init_spot_variance = make_pair(init_spot, init_variance);
 
-	HestonModel model(1., 1., 1., 1., 0.5, init_spot_variance);
+	HestonModel model(2., 0, 0.01, risk_free_rate, -0.8, init_spot_variance);
 
 	vector<vector<pair<double, double> > > all_steps;
 	vector<double> time_points; 
@@ -120,16 +125,27 @@ int main()
 		vanilla_heston_prices.push_back(hest_prices_const_mat);
 	}
 
-
 	/// Retrieve implied volatilities fothe prices given by the vanilla Heston simulation
 	vector<vector<double>> vheston_imp_vol = compute_implied_vol_matrix(market_maturities,
 		market_strikes, vanilla_heston_prices, init_spot, risk_free_rate);
 
 
-	/// Move these volatilites a little 
+	/// Move these volatilites a little
+
+	vector<vector<double>> vheston_imp_vol_noised_mat;
+	for (int i = 0; i < nb_maturities; i++) {
+		vector<double> vheston_imp_vol_noised_vect;
+		for (int j = 0; j < nb_strikes; j++) {
+			unsigned seed = chrono::system_clock::now().time_since_epoch().count();
+			default_random_engine generator(seed);
+			normal_distribution<double> distribution(0.0, 0.001);
+			vheston_imp_vol_noised_vect.push_back(distribution(generator) + vheston_imp_vol[i][j]);
+		}
+		vheston_imp_vol_noised_mat.push_back(vheston_imp_vol_noised_vect);
+	}
+
 	/// The new volatility matrix is considered to be the 
 	/// market implied volatility of option prices
-	
 
 
 	/// Compute prices with SLV Monte Carlo by keeping the same Heston model and 
