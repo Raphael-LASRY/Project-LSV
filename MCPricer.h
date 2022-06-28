@@ -13,6 +13,7 @@ public:
 		const PathSimulator2F& path_simulator,
 		const double& risk_free_rate);
 
+	// Return a price computed with Monte Carlo simulations
 	double price() const;
 
 

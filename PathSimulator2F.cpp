@@ -1,6 +1,7 @@
 #include "PathSimulator2F.h"
 #include "Model2F.h" 
 #include "HestonModel.h"
+#include "utils.h"
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -62,13 +63,16 @@ vector<pair<double, double>> PathSimulatorEuler2F::paths() const
 	// Initialization
 	int nb_paths = this->nb_paths;
 
-	
 	vector<pair<double, double>> current_step;
 	
 	pair<double, double> init_spot_variance = _model->init_spot_variance();
 	for (int i = 0; i < nb_paths; i++) {
 		current_step.push_back(init_spot_variance);
 	}
+
+	unsigned seed = 1;
+	default_random_engine generator(seed);
+	std::normal_distribution<double> distribution(0., 1.);
 
 	int size = _time_points.size();
 
@@ -84,9 +88,7 @@ vector<pair<double, double>> PathSimulatorEuler2F::paths() const
 		for (int path_idx = 0; path_idx < nb_paths; path_idx++) {
 			pair<double, double> current_spot_variance = current_step[path_idx];
 
-			std::mt19937 generator = std::mt19937(std::chrono::system_clock::now()
-				.time_since_epoch().count());
-			std::normal_distribution<double> distribution(0., 1.);
+			
 			double z_1 = distribution(generator);
 			double z_2 = distribution(generator);
 
@@ -164,28 +166,144 @@ PathSimulatorSLV::~PathSimulatorSLV()
 	delete _model;
 }
 
+
 vector<pair<double, double>> PathSimulatorSLV::paths() const
 {	
 
-// Initialization
+
+	// Initialization
 	int nb_paths = this->nb_paths;
 
-	// current_step a vector of simulated (price, variance) for all monte-carlo simulation
+	// current_step a vector of simulated (price, variance) for 
+	// all monte-carlo simulation
 	vector< pair<double, double> > current_step;
 
 	for (int i = 0; i < nb_paths; i++) {
-		current_step.push_back(this->_model->init_spot_variance());
+		current_step.push_back(_model->init_spot_variance());
 	}
 
-	int nb_time_points = this->_time_points.size();
+	// Monte Carlo Simulations
+	unsigned seed = 1;
+	default_random_engine generator(seed);
+	std::normal_distribution<double> distribution(0., 1.);
 
-// Monte Carlo Simulations
+	int size = _time_points.size();
 
-	
+	for (int time_idx = 0; time_idx < size - 1; time_idx++) {
+
+
+		vector< pair < pair<double, double>, int > > sorted_vector;
+		for (int i = 0; i < nb_paths; i++) {
+			sorted_vector.push_back(make_pair(current_step[i], i));
+		}
+
+		// std::sort uses the lexicographic order by default to sort
+		// As we want to sort by spot prices this is the required behavior
+
+		std::sort(sorted_vector.begin(), sorted_vector.end());
+
+		// Compute conditional expectations within each bin and create a map
+		// between initial indexes in current_step vector 
+		// and the conditional expectation computed in their bin
+
+		int bin_size = nb_paths / nb_bins;
+		int lower_bin_index = 0;
+		int upper_bin_index = bin_size;
+
+		map <int, double> conditional_expect_dict;
+
+
+		while (upper_bin_index <= nb_paths) {
+
+			int upper_idx = min(upper_bin_index, nb_paths);
+
+			double conditional_expectation = 0;
+
+			int nb_observations = 0;
+
+			for (int j = lower_bin_index; j < upper_idx; j++) {
+				
+				double psi_vol_squared = 
+					(_model->psi_function(sorted_vector[j].first.second) 
+					 * _model->psi_function(sorted_vector[j].first.second));
+
+				conditional_expectation += psi_vol_squared;
+				nb_observations += 1;
+			}
+
+			conditional_expectation = (conditional_expectation * (1 / (float)nb_observations));
+			
+			// Save conditional expectation for each index
+			for (int j = lower_bin_index; j < upper_idx; j++) {
+				int idx = sorted_vector[j].second;
+				conditional_expect_dict[idx] = conditional_expectation;
+			}
+
+			lower_bin_index += bin_size;
+			upper_bin_index += bin_size;
+		}
+
+		
+		// Compute next step
+
+		vector< pair<double, double>> next_step = current_step;
+		double t = _time_points[time_idx];
+		double delta_t = _time_points[time_idx + 1] - _time_points[time_idx];
+
+
+		for (int j = 0; j < nb_paths; j++) {
+
+			// Generate random vector
+			double normal_1 = distribution(generator);
+			double normal_2 = distribution(generator);
+			double correlation = _model->correlation();
+			double normal_corr = correlation * normal_1
+				+ sqrt(1 - correlation * correlation) * normal_2;
+
+			double previous_vol = current_step[j].second;
+			double previous_spot = current_step[j].first;
+			double r = _model->risk_free_rate();
+
+			// Volatility update
+			double next_vol = previous_vol
+				+ _model->variance_drift(t, previous_vol) * delta_t
+				+ (_model->variance_diffusion(t, previous_vol)
+					* sqrt(delta_t) * normal_corr);
+
+			// Compute dupire volatility
+			double dupire_vol = _dupire_volatility.local_volatility(t, 
+				previous_spot);
+
+			// Spot update (the conditional expectations 
+			// have already been computed for this timestep)
+			double next_spot = previous_spot
+				+ r * previous_spot * delta_t
+				+  (sqrt(dupire_vol * dupire_vol / conditional_expect_dict[j])
+					* previous_spot
+					* _model->psi_function(previous_vol)
+					* sqrt(delta_t)
+					* normal_1);
+
+
+			// In case next_spot is inferior to 0 if normal_1 is too big, 
+			// it can lead to numerical problems in local volatility computation
+			if (next_spot <= 0) {
+				next_spot = previous_spot;
+			}
+
+			next_step[j].first = next_spot;
+
+			// To not take square root of a negative value with Heston model
+			next_vol = max(0., next_vol);
+			next_step[j].second = next_vol;
+
+			
+		}
+
+		// Update path value
+		current_step = next_step;
+
+	}
+
 	return current_step;
 }
-
-
-
-
-

@@ -148,6 +148,7 @@
     <ClCompile Include="HestonModel.cpp" />
     <ClCompile Include="PathSimulator2F.cpp" />
     <ClCompile Include="Payoff.cpp" />
+    <ClCompile Include="test_implementation.cpp" />
     <ClCompile Include="ThomasSolver.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
@@ -160,6 +161,7 @@
     <ClInclude Include="HestonModel.h" />
     <ClInclude Include="Model2F.h" />
     <ClInclude Include="Payoff.h" />
+    <ClInclude Include="test_implementation.h" />
     <ClInclude Include="ThomasSolver.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>

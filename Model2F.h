@@ -26,12 +26,13 @@ public:
     Pair drift_pair(const double& time, const Pair& spot_variance) const;
     Pair diffusion_pair(const double& time, const Pair& spot_variance) const;
 
-protected:
-
     virtual double psi_function(const double& variance) const = 0;
     virtual double sigma_function(const double& time, const double& variance) const = 0;
     virtual double variance_drift(const double& time, const double& variance) const = 0;
     virtual double variance_diffusion(const double& time, const double& variance) const = 0;
+
+
+protected:
 
     double _risk_free_rate;
     double _correlation;

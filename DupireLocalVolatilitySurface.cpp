@@ -1,5 +1,7 @@
 #include "DupireLocalVolatilitySurface.h"
 #include <cmath>
+#include <iostream>
+
 
 
 DupireLocalVolatilitySurface::DupireLocalVolatilitySurface(
@@ -32,7 +34,10 @@ double DupireLocalVolatilitySurface::local_volatility(const double& maturity,
 	const double& strike) const
 {
 	// sigma*(T,K)
+
 	double sigma = _implied_volatility_surface.implied_volatility(maturity, strike);
+
+	
 
 	double d_sigma_dT = first_order_derivative_impliedvol_maturity(maturity, strike);
 	double d_sigma_dK = first_order_derivative_impliedvol_strike(maturity, strike);
@@ -44,6 +49,7 @@ double DupireLocalVolatilitySurface::local_volatility(const double& maturity,
 				  / (sigma * std::sqrt(maturity)));
 	double d2 = d1 - sigma * std::sqrt(maturity);
 
+	
 	double numerator = 1. 
 					  + ((2. * maturity / sigma) 
 						  * (d_sigma_dT + risk_free_rate * d_sigma_dK));
@@ -57,7 +63,11 @@ double DupireLocalVolatilitySurface::local_volatility(const double& maturity,
 						+ d1 * d2 * k_ds_dK_sqrtT * k_ds_dK_sqrtT 
 						+ k_d2s_dK2_sqrtT * k_s_sqrtT;
 
+
 	double dupire_variance = sigma * sigma * numerator / denominator;
+
+	dupire_variance = std::max(dupire_variance, 0.);
+
 	double dupire_volatility = std::sqrt(dupire_variance);
 	return dupire_volatility;
 }

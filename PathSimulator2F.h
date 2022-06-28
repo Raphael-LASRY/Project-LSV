@@ -53,6 +53,8 @@ public:
 
 	~PathSimulatorEuler2F();
 
+	// This function implements the Euler 
+	// discretization scheme for a 2 factor model
 	vector<pair<double, double>> paths() const;
 
 };
@@ -75,12 +77,12 @@ public:
 
 	~PathSimulatorSLV();
 
+	// This function implements the SLV simulation as explained 
+	// in the article "The Heston Stochastic-Local Volatility Model: 
+	// Efficient Monte Carlo simulation"
 	vector<pair<double, double>> paths() const;
 
 private:
-	vector<double> _time_points;
-	const Model2F* _model;
-	int nb_paths;
 
 	const DupireLocalVolatilitySurface _dupire_volatility;
 	int nb_bins;

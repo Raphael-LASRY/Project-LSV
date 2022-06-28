@@ -2,6 +2,7 @@
 #include <algorithm>
 #include "ThomasSolver.h"
 #include <cmath>
+#include <iostream>
 
 using namespace std;
 
@@ -71,7 +72,8 @@ bool ImpliedVolatilitySurface::check_vols_positivity() const
 	return true;
 }
 
-double ImpliedVolatilitySurface::implied_volatility(const double& maturity, const double& strike) const
+double ImpliedVolatilitySurface::implied_volatility(const double& maturity, 
+	const double& strike) const
 {
 	// Locate the maturity in the correct maturity interval from _maturities : T in [T_i, T_{i+1}[ or T <= T_1 or T >= T_M
 	size_t left_maturity_index;
@@ -172,6 +174,7 @@ void ImpliedVolatilitySurface::evaluate_cubic_spline_coefficients()
 	}
 }
 
+
 double ImpliedVolatilitySurface::compute_smile_implied_vol(const size_t& maturity_index, const double& strike) const
 {
 	double implied_vol;
@@ -206,6 +209,7 @@ double ImpliedVolatilitySurface::compute_smile_implied_vol(const size_t& maturit
 			// Cubic spline index is "left_strike_index"
 
 			// Evaluate that cubic spline function at strike K
+			
 			double alpha = _alpha_coefficients[maturity_index][left_strike_index];
 			double beta = _beta_coefficients[maturity_index][left_strike_index];
 			double gamma = _gamma_coefficients[maturity_index][left_strike_index];
